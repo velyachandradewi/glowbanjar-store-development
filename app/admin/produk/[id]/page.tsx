@@ -1,7 +1,7 @@
 import Link from 'next/link'
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
-import { isAdmin } from '@/lib/admin'
+import { requireAdmin } from '@/lib/admin'
 import { CATEGORIES, getProduct } from '@/lib/shop'
 import { saveProduct } from '../../actions'
 
@@ -13,7 +13,7 @@ type Props = {
 }
 
 export default async function ProductFormPage({ params, searchParams }: Props) {
-  if (!(await isAdmin())) redirect('/admin')
+  await requireAdmin()
   const { id } = await params
   const { error } = await searchParams
   const product = id === 'baru' ? null : await getProduct(id)

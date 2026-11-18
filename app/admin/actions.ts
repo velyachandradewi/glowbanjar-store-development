@@ -1,36 +1,13 @@
 'use server'
 
-import { createHash } from 'node:crypto'
-import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
-import { ADMIN_COOKIE, adminConfigured, isAdmin, safeEqual, sessionToken } from '@/lib/admin'
+import { requireAdmin } from '@/lib/admin'
 import { adminClient } from '@/lib/supabase'
 import { CATEGORIES } from '@/lib/shop'
 
-const hash = (s: string) => createHash('sha256').update(s).digest('hex')
-
-export async function login(_: string | null, formData: FormData) {
-  if (!adminConfigured()) return 'ADMIN_PASSWORD belum diatur.'
-  const password = String(formData.get('password') ?? '')
-  if (!safeEqual(hash(password), hash(process.env.ADMIN_PASSWORD!))) return 'Password salah.'
-  ;(await cookies()).set(ADMIN_COOKIE, sessionToken(), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/admin',
-    maxAge: 60 * 60 * 8,
-  })
-  redirect('/admin')
-}
-
-export async function logout() {
-  ;(await cookies()).delete({ name: ADMIN_COOKIE, path: '/admin' })
-  redirect('/admin')
-}
-
 export async function saveProduct(formData: FormData) {
-  if (!(await isAdmin())) redirect('/admin')
+  await requireAdmin()
 
   const id = String(formData.get('id') ?? '')
   const category = String(formData.get('category') ?? '')
@@ -54,7 +31,7 @@ export async function saveProduct(formData: FormData) {
 }
 
 export async function deleteProduct(formData: FormData) {
-  if (!(await isAdmin())) redirect('/admin')
+  await requireAdmin()
   await adminClient().from('products').delete().eq('id', String(formData.get('id')))
   revalidatePath('/', 'layout')
   redirect('/admin')

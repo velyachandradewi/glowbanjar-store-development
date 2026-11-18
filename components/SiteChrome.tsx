@@ -1,9 +1,12 @@
 import Link from 'next/link'
 import { MapPin, Sparkles } from 'lucide-react'
 import { ADDRESS } from '@/lib/shop'
+import { getSession } from '@/lib/admin'
+import { signOut } from '@/app/auth/actions'
 import { CartBadge } from './cart'
 
-export function Header() {
+export async function Header() {
+  const session = await getSession()
   return (
     <header className="sticky top-0 z-30 border-b border-purple-100 bg-white/90 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4">
@@ -22,6 +25,22 @@ export function Header() {
           <Link href="/katalog" className="rounded-full px-3 py-2 hover:bg-purple-50">
             Katalog
           </Link>
+          {session?.role === 'admin' && (
+            <Link href="/admin" className="rounded-full bg-amber-100 px-3 py-2 text-amber-800 hover:bg-amber-200">
+              Admin
+            </Link>
+          )}
+          {session ? (
+            <form action={signOut}>
+              <button type="submit" className="rounded-full px-3 py-2 hover:bg-purple-50">
+                Keluar
+              </button>
+            </form>
+          ) : (
+            <Link href="/masuk" className="rounded-full px-3 py-2 hover:bg-purple-50">
+              Masuk
+            </Link>
+          )}
           <CartBadge />
         </nav>
       </div>
