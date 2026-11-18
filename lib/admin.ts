@@ -1,26 +1,35 @@
-import { createHmac, timingSafeEqual } from 'node:crypto'
-import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { cache } from 'react'
+import { adminClient } from './supabase'
+import { createAuthClient } from './supabase-server'
 
-export const ADMIN_COOKIE = 'glowbanjar_admin'
+export type Role = 'admin' | 'user'
 
-export function adminConfigured() {
-  return Boolean(process.env.ADMIN_PASSWORD && process.env.SUPABASE_SERVICE_ROLE_KEY)
-}
+// Sumber kebenaran peran adalah tabel profiles (hanya bisa diubah service role di server).
+// Email di ADMIN_EMAIL yang sudah terverifikasi otomatis dipromosikan menjadi admin.
+export const getSession = cache(async () => {
+  const supabase = await createAuthClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return null
 
-export function sessionToken() {
-  return createHmac('sha256', process.env.SUPABASE_SERVICE_ROLE_KEY!)
-    .update(process.env.ADMIN_PASSWORD!)
-    .digest('hex')
-}
+  const db = adminClient().from('profiles')
+  const { data } = await db.select('role').eq('id', user.id).maybeSingle()
+  let role: Role = data?.role === 'admin' ? 'admin' : 'user'
 
-export function safeEqual(a: string, b: string) {
-  const x = Buffer.from(a)
-  const y = Buffer.from(b)
-  return x.length === y.length && timingSafeEqual(x, y)
-}
+  const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase()
+  if (role !== 'admin' && adminEmail && user.email_confirmed_at && user.email?.toLowerCase() === adminEmail) {
+    await db.upsert({ id: user.id, email: user.email, role: 'admin' })
+    role = 'admin'
+  }
 
-export async function isAdmin() {
-  if (!adminConfigured()) return false
-  const value = (await cookies()).get(ADMIN_COOKIE)?.value
-  return Boolean(value) && safeEqual(value!, sessionToken())
+  return { id: user.id, email: user.email ?? '', role }
+})
+
+export async function requireAdmin() {
+  const session = await getSession()
+  if (!session) redirect('/masuk?next=/admin')
+  if (session.role !== 'admin') redirect('/?akses=ditolak')
+  return session
 }

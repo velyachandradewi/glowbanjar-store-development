@@ -1,22 +1,15 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
-import { adminConfigured, isAdmin } from '@/lib/admin'
+import { requireAdmin } from '@/lib/admin'
 import { getProducts, rupiah } from '@/lib/shop'
-import { deleteProduct, logout } from './actions'
-import { LoginForm } from './LoginForm'
+import { signOut } from '@/app/auth/actions'
+import { deleteProduct } from './actions'
 
 export const metadata: Metadata = { title: 'Admin', robots: { index: false } }
 
 export default async function AdminPage() {
-  if (!adminConfigured()) {
-    return (
-      <p className="card mx-auto max-w-md p-6 text-center text-neutral-600">
-        Atur environment variable <code className="font-mono font-bold">ADMIN_PASSWORD</code> untuk mengaktifkan admin.
-      </p>
-    )
-  }
-  if (!(await isAdmin())) return <LoginForm />
+  await requireAdmin()
 
   const products = await getProducts()
 
@@ -28,7 +21,7 @@ export default async function AdminPage() {
           <Link href="/admin/produk/baru" className="btn btn-primary">
             <Plus className="size-4" /> Tambah
           </Link>
-          <form action={logout}>
+          <form action={signOut}>
             <button type="submit" className="btn btn-ghost">
               Keluar
             </button>
